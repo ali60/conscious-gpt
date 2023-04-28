@@ -13,10 +13,13 @@ def connect_to_database():
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
                  question TEXT,
                  answer TEXT)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS user_info
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                 name TEXT)''')
     return conn, c
 
-
-def ask_gpt(prompt, temperature=0.5):
+# this method is used to ask gpt3 for a response
+def ask_gpt(prompt, temperature=0.5)->str:
     response = openai.Completion.create(
         engine="text-davinci-002",
         prompt=prompt,
@@ -33,13 +36,25 @@ def ask_gpt(prompt, temperature=0.5):
     return message
 
 
+def get_or_save_user_name(c)->str:
+    c.execute("SELECT name FROM user_info")
+    name_row = c.fetchone()
+
+    if not name_row:
+        user_name = input("Please enter your name: ")
+        c.execute("INSERT INTO user_info (name) VALUES (?)", (user_name,))
+        return user_name
+    else:
+        return name_row[0]
+
+
 def summarize_text(text):
     prompt = "Please summarize the following text:\n" + text
     summary = ask_gpt(prompt)
     return summary
 
 
-def generate_question(summary):
+def generate_question(summary)->str:
     prompt = "Please ask a funny question based on the following summary:\n" + summary
     question = ask_gpt(prompt)
     return question
@@ -54,15 +69,18 @@ def is_statement(text) -> bool:
     print(f"{text} is a statement")
     return False
 
+
 def generate_something_for_statement(summary, text) -> bool:
-    prompt = f"this is the conversation summary with user: {text}. The use then mentioned :{text}. Generate positive information for the user."
-    response = ask_gpt(prompt, temperature=0.2)
+    prompt = f"this is the conversation summary with user: {summary}. The use then mentioned :{text}. Give usefull information for this topic."
+    response = ask_gpt(prompt, temperature=0.5)
     return response
+
 
 def main():
     conn, c = connect_to_database()
-
-    print("Welcome to ChatGPT!")
+    user_name = get_or_save_user_name(c)
+    conn.commit()
+    print(f"Welcome to ChatGPT, {user_name}!")
     print("Type 'exit' to end the conversation.")
 
     c.execute("SELECT question FROM chat_history")
@@ -71,10 +89,10 @@ def main():
 
     questions_text = "\n".join(questions)
     summary = summarize_text(questions_text)
-    print('summary of previous questions: ' + summary)
+    print(f"summary of previous questions: {summary}\n")
 
     gpt_question = generate_question(summary)
-    print(gpt_question+"??")
+    print(f"{gpt_question}, {user_name}?")
 
     while True:
         user_input = input("You: ")
