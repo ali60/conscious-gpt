@@ -62,7 +62,7 @@ def generate_something_for_statement(summary, text) -> bool:
 def main():
     conn, c = connect_to_database()
 
-    print("Welcome to ChatGPT!", openai.api_key)
+    print("Welcome to ChatGPT!")
     print("Type 'exit' to end the conversation.")
 
     c.execute("SELECT question FROM chat_history")
